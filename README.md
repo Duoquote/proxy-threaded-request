@@ -7,18 +7,21 @@ I made this program to easily scrape data.
 ### How to use it?
 
 You need to prepare a url list to send request and save the data. The list should be in a format like this:
+```json
 [
 	["http://url-to-download.domain", "location/of/data/name0.extension"],
 	["http://url-to-download.domain", "location/of/data/name1.extension"],
 	["http://url-to-download.domain", "location/of/data/name2.extension"],
 	["http://url-to-download.domain", "location/of/data/name3.extension"]
 ]
+```
 
 Firstly you need to import my script into your python project or if you know what you do, then you feed the url list into urlqueue object.
 
 Then you need to iterate the url list and send every [url, location] nested lists into proxy.urlqueue like:
-
+```python
 proxy.urlqueue.put(["http://url-to-download.domain", "location/of/data/name3.extension"]).
+```
 
 As you add the urls it will automatically download and save the data.
 

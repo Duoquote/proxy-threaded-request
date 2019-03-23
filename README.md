@@ -1,3 +1,7 @@
+### Attention
+
+I found a new bug and I don't know why it happens but somehow the program uses a cpu core 100%, I will try to fix that.
+
 ### Threaded Proxy Requester
 
 With this program, you can either use your own proxies or let it download a proxy list from other source and then specify the thread amount and each thread will send a get request to the url you provide and each thread will have it's own proxy url. The program in the current state may not work properly and it also is not perfected, there are a lot junk code in there and I did not implemented many error handlings, things can go wrong but I need to say that I tested it with 1000 threads with 1000 proxy addresses scraped data without crashing or something. Also I need to mention that, I didn't add many flexibility like, you can't do some things without touching the source code a lot.

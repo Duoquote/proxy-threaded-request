@@ -2,7 +2,8 @@ import requests, threading, os, time, queue, json, socket
 from datetime import datetime
 
 socket.setdefaulttimeout(3)
-
+saveQueue = queue.Queue()
+doneQueue = queue.Queue()
 netStatus = True
 
 def getData(url, headers=False, proxy=False):
@@ -40,6 +41,18 @@ def getData(url, headers=False, proxy=False):
 
 class Descriptor(threading.Thread):
 	def __init__(self):
+		self.codes = {
+			0: "Status",
+			1: "Warning",
+			2: "Error",
+			3: "Done"
+		}
+		self.options = {
+			"log": True,
+			"print": True,
+			"done": True,
+			"save": True
+			}
 		try:
 			if os.path.exists("log.txt"):
 				timestamp = datetime.fromtimestamp(int(os.stat("log.txt").st_ctime))
@@ -47,21 +60,22 @@ class Descriptor(threading.Thread):
 		except:
 			timestamp = datetime.fromtimestamp(int(os.stat("log.txt").st_ctime))
 			os.rename("log.txt", "log-"+datetime.strftime(timestamp, "%Y-%m-%dT%H-%M-%S")+".txt")
-		self.saveQueue = queue.Queue()
-		self.options = {
-			"log": True,
-			"print": True
-			}
 		threading.Thread.__init__(self, target=self.run)
 	def run(self):
 		while True:
-			if not self.saveQueue.empty():
-				processData = self.saveQueue.get()
+			if not saveQueue.empty():
+				data = saveQueue.get()
+				timeStamp = datetime.strftime(datetime.now(), "%X")
+				if data[0] == 3:
+					log = "[{}]{:>7}|>[{}]: {}".format(timeStamp, self.codes[data[0]], data[1], data[2]["message"])
+					doneQueue.put(data[2]["data"])
+				else:
+					log = "[{}]{:>7}|>[{}]: {}".format(timeStamp, self.codes[data[0]], data[1], data[2])
 				if self.options["log"]:
-					with open("log.txt", "w") as f:
-						f.write(processData)
+					with open("log.txt", "a") as f:
+						f.write(log+"\n")
 				if self.options["print"]:
-					print(processData["data"])
+					print(log)
 			else:
 				time.sleep(1)
 
@@ -111,42 +125,60 @@ class Proxy(threading.Thread):
 		except:
 			return False
 
-
 class Main:
-	def __init__(self, threadCount, headers=False, log=True, print=True):
+	def __init__(self, threadCount=8, interval=5, headers=False, save=True, log=True, print=True, done=True):
 		self.descriptor = Descriptor()
 		self.descriptor.options["log"] = log
 		self.descriptor.options["print"] = print
+		self.descriptor.options["done"] = done
 		self.descriptor.start()
+		self.save = save
+		self.interval = interval
 		self.proxy = Proxy().start()
 		self.threads = {}
 		self.urlQueue = queue.Queue()
 		self.headers = headers
 		for t in range(threadCount):
-			self.threads[t] = threading.Thread(target=self.Thread).start()
-	def Thread(self):
-		while True:
-			if not self.urlQueue.empty():
-				data = self.urlQueue.get()
-				if len(data) > 3:
-					headers = data[-1]
+			num = "Thread-{:0>{length}}".format(t, length=len(str(threadCount)))
+			self.threads[t] = threading.Thread(target=self.Thread, args=[num]).start()
+	def Thread(self, tNum):
+		try:
+			saveQueue.put([0, tNum, "Started"])
+			while True:
+				if not self.urlQueue.empty():
+					data = self.urlQueue.get()
+					if "headers" in data:
+						headers = data["headers"]
+						saveQueue.put([0, tNum, "Set headers"])
+					else:
+						headers = self.headers
+					while True:
+						if "id" in data:
+							saveQueue.put([0, tNum, "Processing job [{}]".format(data["id"])])
+						result = getData(data["url"], headers=headers)
+						if result["status"] == 1:
+							if self.descriptor.options["done"] and "id" in data:
+								saveQueue.put([3, tNum, {"message": "Job '{}' done".format(data["id"]), "data": [data["id"], result]}])
+							if self.save:
+								path = data["fileName"].replace("\\", "/").rsplit("/", 1)[0]
+								if not os.path.exists(path):
+									os.makedirs(path)
+								if "format" in data:
+									if data["format"] == "json":
+										write = result["data"].json()
+									else:
+										write = result["data"].text
+								else:
+									write = result["data"].text
+								with open(data["fileName"], "w") as f:
+									f.write(write)
+								saveQueue.put([0, tNum, "Saved file '{}'".format(data["fileName"])])
+							break
+						time.sleep(self.interval)
 				else:
-					headers = self.headers
-				while True:
-					result = getData(data[0], headers=headers)
-					if result["status"] == 1:
-						path = data[2].replace("\\", "/").rsplit("/", 1)[0]
-						if not os.path.exists(path):
-							os.makedirs(path)
-						if data[1] == "json":
-							write = result["data"].json()
-						else:
-							write = result["data"].text
-						with open(data[2], "w") as f:
-							f.write(write)
-						break
-			else:
-				time.sleep(1)
+					time.sleep(1)
+		except Exception as E:
+			saveQueue.put([2, tNum, E.args[0]])
 
 # Old code below, may delete it in future updates, actually I may have found
 # the problem that is causing 100% cpu usage but I had the time to rewrite

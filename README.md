@@ -1,4 +1,4 @@
-### Threaded Proxy Requester Rev.2
+### Threaded Proxy Requester Rev.2.1
 
 With this program, you can either use your own proxies or let it download a proxy list from some source and then specify the thread amount and each thread will send a get request to the url that you provide and will have it's own proxy.
 
@@ -30,18 +30,25 @@ tProxy.headers = {
 }
 ```
 
-Or if you want to specify per url headers, you can pass it with a fourth parameter in the url list like:
+Version 2 and before uses lists instead of dictionaries. For more information about input format look down.
+If you want to specify per url headers, you can pass it with a header parameter in the url dictionary like:
 
 ```python
 urs = [
-	["http://some-domain.extension", "html", "test/test.html"],
-	["http://some-domain.extension", "html", "test/asdasd.html", {
-		"Origin": "http://some-domain.extension",
-		"Referer": "http://some-domain.extension"
-	}],
-	["http://some-domain.extension", "html", "test/testzxc.html"],
-	["http://some-domain.extension", "html", "test/testfqwe.html"],
-	["http://some-domain.extension", "html", "test/testasd.html"]
+		{
+			"id": "work-0",
+			"url": "http://some-domain.address",
+			"format": "html",
+			"fileName": "test/test.html",
+			"headers": {"Origin": "http://some-domain.address"}
+		},
+		{
+			"id": "work-1",
+			"url": "http://some-domain.address",
+			"format": "html",
+			"fileName": "test/test1.html",
+			"headers": {"Origin": "http://some-domain.address"}
+		}
 ]
 ```
 
@@ -51,6 +58,18 @@ Then just iterate through and watch the magic happen.
 for i in urs:
 	tProxy.urlQueue.put(i)
 ```
+
+### Input Format
+
+The following table describes what to put in url dictionaries.
+
+Key | Usage | Type
+--- | --- | ---
+url | Necessary | string
+fileName | Necessary | string
+format | `Optional` | string
+id | `Optional` | string
+headers | `Optional` | dictionary
 
 ### TO-DOs
 
